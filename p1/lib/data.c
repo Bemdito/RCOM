@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
+#include <signal.h>
 #include "data.h"
 
 #define BAUDRATE B38400
@@ -22,7 +23,17 @@ struct termios oldtioRx;
 struct termios newtioRx;
 int Rfd;
 
+int alarmEnabled = FALSE;
+int alarmCount = 0;
+
 volatile int STOP = FALSE;
+
+void alarmHandler(int signal){
+    alarmEnabled = FALSE;
+    alarmCount++;
+
+    printf("Timeout #%d\n", alarmCount);
+}
 
 int llopen(const char *serialPort, port_type type) {
     
@@ -71,25 +82,117 @@ int llopen(const char *serialPort, port_type type) {
         wbuf[3] = wbuf[1] ^ wbuf[2];
         wbuf[4] = 0x7E;
         wbuf[5] = '\n';
+        int lenght = strlen(wbuf) + 1;
+        (void)signal(SIGALRM, alarmHandler);
 
+        int state = 0;
+        unsigned char a;
+        unsigned char c;
+
+        while (alarmCount < 4 && STOP == FALSE){
+            if (alarmEnabled == FALSE){
+                alarm(5); // Set alarm to be triggered in 3s
+                int bytes = write(fd, wbuf, lenght);
+                alarmEnabled = TRUE;
+            }
+            if (read(fd, rbuf, 1) > 0) {
+                switch (state) {
+                case 0:
+                    if (rbuf[0] == 0x7E) state++;
+                    else state = 0;
+                break;
+                case 1:
+                    if (rbuf[0] == 0x03) {
+                        state++;
+                        a = rbuf[0];
+                    }
+                    else state = 0;
+                break;
+                case 2:
+                    if (rbuf[0] == 0x07) {
+                        state++;
+                        c = rbuf[0];
+                    }
+                    else state = 0;
+                break;
+                case 3:
+                    if (rbuf[0] == a ^ c) state++;
+                    else state = 0;
+                break;
+                case 4:
+                    if (rbuf[0] == 0x7E) STOP = TRUE;
+                    else state = 0;
+                break;
+                default:
+                    state = 0;
+                    break;
+                }
+            }
+        }
+        if (alarmCount >= 4){
+            printf("Maximum timeouts reached!!!\n");
+            return -1;
+        }
+        
+        printf("Ready to send packets\n");
+             
     }
     else {
         Rfd = fd;
+        int state = 0;
+        unsigned char a;
+        unsigned char c;
         while (STOP == FALSE){
-        
-            if (read(fd, rbuf, 1) > 0);
-            
-            printf("BUF: %s\n", rbuf);
-            
+            if (read(fd, rbuf, 1) > 0) {
+                switch (state) {
+                case 0:
+                    if (rbuf[0] == 0x7E) state++;
+                    else state = 0;
+                break;
+                case 1:
+                    if (rbuf[0] == 0x03) {
+                        state++;
+                        a = rbuf[0];
+                    }
+                    else state = 0;
+                break;
+                case 2:
+                    if (rbuf[0] == 0x03) {
+                        state++;
+                        c = rbuf[0];
+                    }
+                    else state = 0;
+                break;
+                case 3:
+                    if (rbuf[0] == a ^ c) state++;
+                    else state = 0;
+                break;
+                case 4:
+                    if (rbuf[0] == 0x7E) STOP = TRUE;
+                    else state = 0;
+                break;
+                default:
+                    state = 0;
+                    break;
+                }
+            }
         }
+        printf("Receive SET\n");
+        wbuf[0] = 0x7E;
+        wbuf[1] = 0x03;
+        wbuf[2] = 0x07;
+        wbuf[3] = wbuf[1] ^ wbuf[2];
+        wbuf[4] = 0x7E;
+        wbuf[5] = '\n';
+        int lenght = strlen(wbuf) + 1;
+        int bytes = write(fd, wbuf, lenght);
+
 
 
     }
 
 
-    int lenght = strlen(wbuf) + 1;
-    int bytes = write(fd, wbuf, lenght);
-
+    
 
     return fd;
 }
