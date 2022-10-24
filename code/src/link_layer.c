@@ -26,6 +26,8 @@ int alarmCount = 0;
 
 volatile int STOP = FALSE;
 
+volatile int S = 0;
+
 
 void alarmHandler(int signal){
     alarmEnabled = FALSE;
@@ -199,9 +201,38 @@ int llopen(LinkLayer connectionParameters) {
 ////////////////////////////////////////////////
 // LLWRITE
 ////////////////////////////////////////////////
-int llwrite(const unsigned char *buf, int bufSize)
-{
-    // TODO
+int llwrite(const unsigned char *buf, int bufSize) {
+    unsigned char f = 0x7E;
+    unsigned char a = 0x03;
+    unsigned char c;
+    if (S == 0) {
+        c = 0x00;
+    }
+    else c = 0x40;
+    unsigned char bcc1 = a ^ c;
+    unsigned char bcc2 = 0xff; // TODO aprender bcc2
+    unsigned char buffer[1024];
+    buffer[0] = f;
+    buffer[1] = a;
+    buffer[2] = c;
+    buffer[3] = bcc1;
+    int i = 0;
+    while(i < bufSize) {
+        buffer[4 + i] = buf[i];
+        i++;
+    }
+    buffer[4 + i] = bcc2;
+    buffer[5 + i] = f;
+    buffer[6 + i] = '\0';
+    int bytes;
+    while(alarmCount < 4 && STOP == FALSE) {
+        if(alarmEnabled == FALSE) {
+            alarm(5);
+            bytes = write(Tfd, buffer, 7 + i);
+        }
+        
+    }
+
 
     return 0;
 }
