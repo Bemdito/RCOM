@@ -253,6 +253,7 @@ int llwrite(const unsigned char *buf, int bufSize) {
             if(write(t_id2, buffer, bufSize+12 ) != bufSize+12) {
                 printf("Missed some bytes\n");
             }
+            else alarmEnabled = FALSE; // remove to give time
         }
         if(read(t_id2,rbuffer,10)>0) {
             int state = 1;
