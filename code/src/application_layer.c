@@ -7,10 +7,14 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+int t_id;
+int r_id;
+
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename) {
 
     if (strcmp(role, "tx") == 0) {
+        
         LinkLayer connectionParameters =
         {
             .role = LlTx,
@@ -21,12 +25,13 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         strcpy(connectionParameters.serialPort,serialPort);
 
 
-        int open = llopen(connectionParameters);
-        if(open<0) {
+        t_id = llopen(connectionParameters);
+        if(t_id<0) {
             printf("Error in llopen\n");
             return -1;
         }
-        /*
+
+        /* CONTROL PACKET TODO LATER
         unsigned char start_packet[1000];
         start_packet[0] = 0x02;
         start_packet[1] = 0x00;
@@ -45,36 +50,30 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         }
         start_packet[3] = 0x2A;
         start_packet[4] = 0xD8;
-        */
         
-        unsigned char content[256 + 1];
+        */
+        unsigned char content[1000];
         FILE *file = fopen(filename, "r");
+
         if(file == NULL) {
             printf("Error opening file\n");
             return -1;
         }
-        unsigned char count = 0x00;
-        while(fgets(content,256,file) != NULL) {
-            content[256] = '\0';
-            printf("%s\n", content);
-            unsigned char data_packet[MAX_PAYLOAD_SIZE];
-            data_packet[0] = 0x01;
-            data_packet[1] = count;
-            count++;
-            data_packet[2] = 0x00;
-            data_packet[3] = strlen(content);
-            int i = 0;
-            while (i < strlen(content)) {
-                data_packet[4 + i] = content[i];
-                i++;
+
+        int x;
+        x = fread(content,1,256,file);
+        while(x > 0) {
+            if(llwrite(content,x) < 0) {
+                printf("Error in llwrite()\n");
+                return -1;
             }
-            data_packet[i] = '\0';
-            llwrite(data_packet,4+i+1);
+            
+            x = fread(content,1,256,file);
         }
         
+        fclose(file);
 
-        
-        if (llclose(open)<0){
+        if (llclose(t_id)<0){
             printf("Error in llclose\n");
             return -1;
         }
@@ -91,15 +90,25 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         strcpy(connectionParameters.serialPort,serialPort);
 
 
-        int open = llopen(connectionParameters);
-        if(open<0) {
+        r_id = llopen(connectionParameters);
+        if(r_id<0) {
             printf("Error in llopen\n");
             return -1;
         }
 
 
+        FILE* file;
+        file = fopen(filename,"w");
+        char string[1000];
 
-        if (llclose(open)<0){
+        while (llread(string) != 0){
+            int length = strlen(string);
+            fwrite(string,256,1,file);
+        }
+        
+        fclose(file);
+
+        if (llclose(r_id)<0){
             printf("Error in llclose\n");
             return -1;
         }
