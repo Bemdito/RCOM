@@ -217,29 +217,15 @@ int llwrite(const unsigned char *buf, int bufSize) {
     if(write_number == 0) buffer[2] = 0x00;
     else buffer[2] = 0x40;
     buffer[3] = buffer[1] ^ buffer[2];
-    buffer[4] = 0x01;
-    bcc2 ^= buffer[4];
-    buffer[5] = write_cnt;
-    bcc2 ^= buffer[5];
-    write_cnt++;
-    if (bufSize == 256) {
-        buffer[6] = 0x01;
-        buffer[7] = 0x00;
-    }
-    else {
-        buffer[6] = 0x00;
-        buffer[7] = bufSize;
-    }
-    bcc2 ^= buffer[6];
-    bcc2 ^= buffer[7];
+    
     int i = 0;
     while(i < bufSize) {
-        buffer[i+8] = buf[i];
-        bcc2 ^= buffer[i+8];
+        buffer[i+4] = buf[i];
+        bcc2 ^= buffer[i+4];
         i++;
     }
-    buffer[i+8] = bcc2;
-    buffer[i+9] = 0x7E;
+    buffer[i+4] = bcc2;
+    buffer[i+5] = 0x7E;
     int bytes;
     unsigned char rbuffer[12];
     (void)signal(SIGALRM, alarmHandler);
@@ -250,7 +236,7 @@ int llwrite(const unsigned char *buf, int bufSize) {
             alarm(3);
             alarmEnabled = TRUE;
 
-            if(write(t_id2, buffer, bufSize+12 ) != bufSize+12) {
+            if(write(t_id2, buffer, bufSize+6 ) != bufSize+6) {
                 printf("Missed some bytes\n");
             }
             else alarmEnabled = FALSE; // remove to give time
@@ -415,7 +401,6 @@ int llread(unsigned char *packet){
                 case 6 :
                     
                     if (read_packet[content_size + 9] == 0x7E) {
-                        printf("TESTE\n");
                         state = 0;
                         rSTOP = TRUE;
                     }

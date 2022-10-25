@@ -59,16 +59,26 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             printf("Error opening file\n");
             return -1;
         }
-
+        unsigned char i = 0x00;
         int x;
-        x = fread(content,1,256,file);
+        x = fread(content+4,1,256,file);
         while(x > 0) {
-            if(llwrite(content,x) < 0) {
+            content[0] = 0x01;
+            content[1] = i;
+            if (x == 256) {
+                content[2] = 0x01;
+                content[3] = 0x00;
+            }
+            else {
+                content[2] = 0x00;
+                content[3] = x;
+            }
+            if(llwrite(content,x+4) < 0) {
                 printf("Error in llwrite()\n");
                 return -1;
             }
-            
-            x = fread(content,1,256,file);
+            i++;
+            x = fread(content+4,1,256,file);
         }
         
         fclose(file);
@@ -103,6 +113,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
         while (llread(string) != 0){
             int length = strlen(string);
+
             fwrite(string,256,1,file);
         }
         
