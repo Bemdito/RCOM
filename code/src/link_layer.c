@@ -210,43 +210,33 @@ int llopen(LinkLayer connectionParameters) {
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize) {
     STOP = FALSE;
-    unsigned char f = 0x7E;
-    unsigned char a = 0x03;
-    unsigned char c;
-    if (write_number == 0) {
-        c = 0x00;
-    }
-    else c = 0x40;
-    unsigned char bcc1 = a ^ c;
     unsigned char bcc2 = 0x00;
-    unsigned char buffer[1024];
-    buffer[0] = f;
-    buffer[1] = a;
-    buffer[2] = c;
-    buffer[3] = bcc1;
-    buffer[4] = 0x01;
-    bcc2 ^= buffer[4];
-    buffer[5] = write_cnt;
+    unsigned char buffer[1000];
+
+
+
+    buffer[0] = 0x01;
+    bcc2 ^= buffer[0];
+    buffer[1] = write_cnt;
+    bcc2 ^= buffer[1];
     write_cnt++;
-    bcc2 ^= buffer[5];
     if (bufSize == 256) {
-        buffer[6] = 0x01;
-        buffer[7] = 0x00;
+        buffer[2] = 0x01;
+        buffer[3] = 0x00;
     }
     else {
-        buffer[6] = 0x00;
-        buffer[7] = bufSize;
+        buffer[2] = 0x00;
+        buffer[3] = bufSize;
     }
-    bcc2 ^= buffer[6];
-    bcc2 ^= buffer[7];
+    bcc2 ^= buffer[2];
+    bcc2 ^= buffer[3];
     int i = 0;
     while(i < bufSize) {
-        buffer[8 + i] = buf[i];
-        bcc2 ^= buffer[8 + 1];
+        buffer[i+4] = buf[i];
+        bcc2 ^= buffer[i+4];
         i++;
     }
-    buffer[8 + i] = bcc2;
-    buffer[9 + i] = f;
+    buffer[i+4] = bcc2;
     int bytes;
     unsigned char rbuffer[12];
     (void)signal(SIGALRM, alarmHandler);
@@ -257,7 +247,7 @@ int llwrite(const unsigned char *buf, int bufSize) {
             alarm(1);
             alarmEnabled = TRUE;
 
-            if(write(t_id2, buf, bufSize ) != bufSize) {
+            if(write(t_id2, buffer, i+5 ) != i+5) {
                 printf("Missed some bytes\n");
             }
         }
@@ -330,8 +320,8 @@ int llwrite(const unsigned char *buf, int bufSize) {
         
     }
     if (Receiver_Ready){
-        printf("Bytes written: %d\n", bufSize);
-        return 9+i;
+        printf("Bytes written: %d\n", 5+i);
+        return 1+i;
     }
 
     printf("Maximum timeouts reached!!!\n");
@@ -349,16 +339,26 @@ int llread(unsigned char *packet){
     int disc = FALSE;
     rSTOP = FALSE;
     int length;
-    int i = 0;
-    int state = 0;
-    int state2 = 0;
     unsigned char a;
     unsigned char c;
     int rr = FALSE;
     int read_bytes;
+    int content_size;
     while (rSTOP == FALSE){
-        read_bytes = read(Rfd, read_packet, 256);
-        if (read_bytes == 256) {
+        read_bytes = read(Rfd, read_packet, 1000);
+        if (read_packet[0] == 0x01 && read_packet[1] == read_cnt){
+            read_cnt++;
+            content_size = 256 * read_packet[2] + read_packet[3];
+            unsigned char bcc2 = 0x00;
+            int i = 0;
+            while (i < content_size + 4) {
+                bcc2 ^= read_packet[i];
+                i++;
+            }
+            if (bcc2 == read_packet[i]){
+                printf("CORRECT\n");
+            }
+            
             unsigned char receiver_ready[10];
             receiver_ready[0] = 0x7E;
             receiver_ready[1] = 0x03;
@@ -375,34 +375,21 @@ int llread(unsigned char *packet){
             write(Rfd, receiver_ready, 5);
             info = TRUE;
             rSTOP = TRUE;
-        }
-        else if (read_bytes > 0 && read_bytes < 256) {
-            unsigned char receiver_ready[10];
-            receiver_ready[0] = 0x7E;
-            receiver_ready[1] = 0x03;
-            if (receiver_number == 0) {
-                receiver_ready[2] = 0x05;
-                receiver_number = 1;
+
+            if (read_bytes > 0 && read_bytes < 261) {
+             disc = TRUE;
             }
-            else {
-                receiver_ready[2] = 0x85;
-                receiver_number = 0;
-            }
-            receiver_ready[3] = receiver_ready[1] ^ receiver_ready[2];
-            receiver_ready[4] = 0x7E;
-            write(Rfd, receiver_ready, 5);
-            info = TRUE;
-            disc = TRUE;
-            rSTOP = TRUE;
         }
+        
+        
     }
 
-    if (info == TRUE) memcpy(packet,read_packet,read_bytes);
+    if (info == TRUE) memcpy(packet,read_packet+4, content_size);
     if(disc == TRUE) return 0;
 
     
 
-    return read_bytes;
+    return content_size;
 }
 
 ////////////////////////////////////////////////
