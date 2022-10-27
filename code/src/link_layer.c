@@ -310,7 +310,7 @@ int llwrite(const unsigned char *buf, int bufSize) {
         
     }
     if (Receiver_Ready){
-        printf("Bytes written: %d\n", 5+i);
+        printf("Bytes written: %d\n", 6+bufSize);
         return 1+i;
     }
 
