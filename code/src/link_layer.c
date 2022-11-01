@@ -235,11 +235,10 @@ int llwrite(const unsigned char *buf, int bufSize) {
         if(alarmEnabled == FALSE) {
             alarm(3);
             alarmEnabled = TRUE;
-
             if(write(t_id2, buffer, bufSize+6 ) != bufSize+6) {
                 printf("Missed some bytes\n");
             }
-            else alarmEnabled = FALSE; // remove to give time
+            //else alarmEnabled = FALSE; // remove to give time
         }
         if(read(t_id2,rbuffer,10)>0) {
             int state = 1;
@@ -332,84 +331,120 @@ int llread(unsigned char *packet){
     int length;
     unsigned char a;
     unsigned char c;
+    unsigned char bcc2 = 0x00;
     
     int read_bytes;
     int content_size;
+    int state=1;
+    unsigned char l1, l2;
+    unsigned char content[256];
     while (rSTOP == FALSE){
-        read_bytes = read(Rfd, read_packet, 1000);
+        read_bytes = read(Rfd, read_packet, 1);
         if (read_bytes > 0) {
-            int state=1;
-            while(state) {
-                switch (state) {
-                case 1 :
-                    if (read_packet[0] == 0x7E){
-                        state++;    
-                    }
-                    else state = 1;        
-                    break;
-                case 2 :
-                    a = read_packet[1];
-                    if (a == 0x03){
-                        state++;
-                    }
-                    else state = 1;
-                    break;
-                case 3 :
-                    c = read_packet[2];
-                    if (c == 0x0B) {
-                        state++;
-                        disc = TRUE;
-                    }
-                    else if (receiver_number == 0 && c == 0x00) {
-                        state++;
-                        info=TRUE;
-                    }
-                    else if (receiver_number == 1 && c == 0x40) {
-                        state++;
-                        info=TRUE;
-                    }
-                    else state = 1;
-                    break;
-                case 4 :
-                    if (read_packet[3] == a ^ c) {
-                        state++;
-                    }
-                    else state = 1;
-                    break;
-                case 5 :
-                    if (info == FALSE && read_packet[4] == 0x7E) {
-                        state = 0;
-                        rSTOP = TRUE;
-                    }
-                    else if (info == TRUE) {
-                        if (read_packet[4] == 0x01 && read_packet[5] == read_cnt){
-                            read_cnt++;
-                            content_size = 256 * read_packet[6] + read_packet[7];
-                            unsigned char bcc2 = 0x00;
-                            int i = 0;
-                            while (i < content_size + 4) {
-                                bcc2 ^= read_packet[i + 4];
-                                i++;
-                            }
-                            if (bcc2 == read_packet[i + 4]){
-                                state++;
-                            }
-                        }
-                    }
-                    else state = 1;
-                    break;
-                case 6 :
-                    
-                    if (read_packet[content_size + 9] == 0x7E) {
-                        state = 0;
-                        rSTOP = TRUE;
-                    }
-                    else state = 1;
-                    break;
-                default:
-                    state = 0;
-                    break;
+            switch (state) {
+            case 1 :
+                if (read_packet[0] == 0x7E){
+                    state++;    
                 }
+                else state = 1;        
+                break;
+            case 2 :
+                if (read_packet[0] == 0x03){
+
+                    a = read_packet[0];
+                    state++;
+                }
+                else state = 1;
+                break;
+            case 3 :
+                c = read_packet[0];
+                if (read_packet[0] == 0x0B) {
+                    state++;
+                    disc = TRUE;
+                }
+                else if (receiver_number == 0 && c == 0x00) {
+                    state++;
+                    info=TRUE;
+                }
+                else if (receiver_number == 1 && c == 0x40) {
+                    state++;
+                    info=TRUE;
+                }
+                else state = 1;
+                break;
+            case 4 :
+                if (read_packet[0] == a ^ c) {
+                    state++;
+                }
+                else state = 1;
+                break;
+            case 5 :
+                if (info == FALSE && read_packet[0] == 0x7E) {
+                    state = 0;
+                    rSTOP = TRUE;
+                }
+                else if (info == TRUE) {
+                    if (read_packet[0] == 0x01){
+                        bcc2 ^= read_packet[0];
+                        state++;
+                        /*
+                        read_cnt++;
+                        content_size = 256 * read_packet[6] + read_packet[7];
+                        unsigned char bcc2 = 0x00;
+                        int i = 0;
+                        while (i < content_size + 4) {
+                            bcc2 ^= read_packet[i + 4];
+                            i++;
+                        }
+                        if (bcc2 == read_packet[i + 4]){
+                            state++;
+                        }
+                        */
+                    }
+                }
+                else state = 1;
+                break;
+            case 6 :
+                if (read_packet[0] == read_cnt) {
+                    bcc2 ^= read_packet[0];
+                    state++;
+                }
+                else state = 1;
+                break;
+            case 7 :
+                l2 = read_packet[0];
+                bcc2 ^= l2;
+                while (read(Rfd, read_packet, 1) == 0);
+                l1 = read_packet[0];
+                bcc2 ^= l1;
+                content_size = 256 * l2 + l1;
+                int i = 0;
+                while (i < content_size) {
+                    i += read(Rfd, content + i,content_size-i);
+                }
+                int j = 0;
+                while (j<content_size) {
+                    bcc2 ^= content[j];
+                    j++;
+                }
+                state++;
+                break;
+            case 8 :
+                if (read_packet[0] == bcc2) {
+                    state++;
+                }
+                else
+                    state = 1;
+                break;
+            case 9 :
+                if (read_packet[0] == 0x7E) {
+                    read_cnt++;
+                    rSTOP = TRUE;
+                }
+                break;
+            default:
+                rSTOP = TRUE;
+                break;
             }
         }
         
@@ -431,7 +466,7 @@ int llread(unsigned char *packet){
     receiver_ready[4] = 0x7E;
     write(Rfd, receiver_ready, 5);
     
-    if (info == TRUE) memcpy(packet,read_packet+8, content_size);
+    if (info == TRUE) memcpy(packet, content, content_size);
     if(disc == TRUE) return 0;
 
     
