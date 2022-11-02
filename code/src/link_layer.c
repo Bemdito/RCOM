@@ -231,6 +231,7 @@ int llwrite(const unsigned char *buf, int bufSize) {
     (void)signal(SIGALRM, alarmHandler);
     alarmCount = 0;
     int Receiver_Ready = FALSE;
+    int state = 1;
     while(alarmCount < 4 && STOP == FALSE) {
         if(alarmEnabled == FALSE) {
             alarm(3);
@@ -240,72 +241,63 @@ int llwrite(const unsigned char *buf, int bufSize) {
             }
             //else alarmEnabled = FALSE; // remove to give time
         }
-        if(read(t_id2,rbuffer,10)>0) {
-            int state = 1;
+        if(read(t_id2,rbuffer,1)>0) {
             unsigned char a2;
             unsigned char c2;
-            int buffer_i = 0;
-            while(state) {
-                switch (state) {
+            switch (state) {
                 case 1:
-                    if (rbuffer[buffer_i] == 0x7E) {
+                    if (rbuffer[0] == 0x7E) {
                         state++;
-                        buffer_i++;
                     }
-                    else state = 0;
+                    else state = 1;
                 break;
                 case 2:
-                    if (rbuffer[buffer_i] == 0x03) {
+                    if (rbuffer[0] == 0x03) {
                         state++;
-                        buffer_i++;
                         a2 = rbuffer[0];
                     }
-                    else state = 0;
+                    else state = 1;
                 break;
                 case 3:
-                    if (write_number == 0 && rbuffer[buffer_i] == 0x05) {
+                    if (write_number == 0 && rbuffer[0] == 0x05) {
                         state++;
-                        buffer_i++;
-                        c2 = rbuffer[buffer_i];
+                        c2 = rbuffer[0];
                     }
-                    else if(write_number == 0 && rbuffer[buffer_i] == 0x01) {
-                        state=0;
-                        c2 = rbuffer[buffer_i];
+                    else if(write_number == 0 && rbuffer[0] == 0x01) {
+                        state=1;
+                        c2 = rbuffer[0];
                     }
-                    else if (write_number == 1 && rbuffer[buffer_i] == 0x85) {
+                    else if (write_number == 1 && rbuffer[0] == 0x85) {
                         state++;
-                        buffer_i++;
-                        c2 = rbuffer[buffer_i];
+                        c2 = rbuffer[0];
                     }
-                    else if (write_number == 1 && rbuffer[buffer_i] == 0x81) {
-                        state = 0;
-                        c2 = rbuffer[buffer_i];
+                    else if (write_number == 1 && rbuffer[0] == 0x81) {
+                        state = 1;
+                        c2 = rbuffer[0];
                     }
-                    else state = 0;
+                    else state = 1;
                 break;
                 case 4:
-                    if (rbuffer[buffer_i] == a2 ^ c2) {
+                    if (rbuffer[0] == a2 ^ c2) {
                         state++;
-                        buffer_i++;
                     }
-                    else state = 0;
+                    else state = 1;
                 break;
                 case 5:
-                    if (rbuffer[buffer_i] == 0x7E) {
+                    if (rbuffer[0] == 0x7E) {
                         STOP = TRUE;
                         Receiver_Ready = TRUE;
                         if (write_number == 0) write_number = 1;
                         else write_number=0;
                     }
-                    state = 0;
                 break;
                 default:
-                    state = 0;
+                    state = 1;
                     break;
-            }
-            }
-            
+            } 
         }
+        
+        
         
     }
     if (Receiver_Ready){
@@ -335,7 +327,7 @@ int llread(unsigned char *packet){
     
     int read_bytes;
     int content_size;
-    int state=1;
+    int state = 1;
     unsigned char l1, l2;
     unsigned char content[256];
     while (rSTOP == FALSE){
