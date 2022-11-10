@@ -380,19 +380,6 @@ int llread(unsigned char *packet){
                     if (read_packet[0] == 0x01){
                         bcc2 ^= read_packet[0];
                         state++;
-                        /*
-                        read_cnt++;
-                        content_size = 256 * read_packet[6] + read_packet[7];
-                        unsigned char bcc2 = 0x00;
-                        int i = 0;
-                        while (i < content_size + 4) {
-                            bcc2 ^= read_packet[i + 4];
-                            i++;
-                        }
-                        if (bcc2 == read_packet[i + 4]){
-                            state++;
-                        }
-                        */
                     }
                 }
                 else state = 1;
