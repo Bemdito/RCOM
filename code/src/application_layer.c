@@ -116,7 +116,11 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
             fwrite(string,256,1,file);
         }
-        
+        string[0] = 0x00;
+
+        fwrite(string,1,1,file);
+
+
         fclose(file);
 
         if (llclose(r_id)<0){

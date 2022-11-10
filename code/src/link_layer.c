@@ -210,6 +210,7 @@ int llopen(LinkLayer connectionParameters) {
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize) {
     STOP = FALSE;
+    alarmEnabled = FALSE;
     unsigned char bcc2 = 0x00;
     unsigned char buffer[1000];
     buffer[0] = 0x7E;
@@ -443,22 +444,26 @@ int llread(unsigned char *packet){
         
         
     }
-    unsigned char receiver_ready[10];
-    receiver_ready[0] = 0x7E;
-    receiver_ready[1] = 0x03;
-    if (receiver_number == 0) {
-        receiver_ready[2] = 0x05;
-        receiver_number = 1;
-    }
-    else {
-        receiver_ready[2] = 0x85;
-        receiver_number = 0;
-    }
-    receiver_ready[3] = receiver_ready[1] ^ receiver_ready[2];
-    receiver_ready[4] = 0x7E;
-    write(Rfd, receiver_ready, 5);
+
     
-    if (info == TRUE) memcpy(packet, content, content_size);
+    if (info == TRUE) {
+        memcpy(packet, content, content_size);
+        unsigned char receiver_ready[10];
+        receiver_ready[0] = 0x7E;
+        receiver_ready[1] = 0x03;
+        if (receiver_number == 0) {
+            receiver_ready[2] = 0x05;
+            receiver_number = 1;
+        }
+        else {
+            receiver_ready[2] = 0x85;
+            receiver_number = 0;
+        }
+        receiver_ready[3] = receiver_ready[1] ^ receiver_ready[2];
+        receiver_ready[4] = 0x7E;
+        write(Rfd, receiver_ready, 5);
+        printf("Wrote RR\n");
+    }
     if(disc == TRUE) return 0;
 
     
