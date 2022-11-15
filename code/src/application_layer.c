@@ -4,7 +4,6 @@
 #include "link_layer.h"
 #include <string.h>
 #include <stdio.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 
 int t_id;
@@ -31,27 +30,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             return -1;
         }
 
-        /* CONTROL PACKET TODO LATER
-        unsigned char start_packet[1000];
-        start_packet[0] = 0x02;
-        start_packet[1] = 0x00;
-        struct stat st;
-        if (stat(filename, &st) != 0) {
-            printf("Couldn't get file size\n");
-            return -1;
-        }
-        if (st.st_size < 256 ) {
-            start_packet[2] = 0x01;
-        } else if (st.st_size < 65536) {
-            start_packet[2] = 0x02;
-        }
-        else {
-            start_packet[2] = 0x03;
-        }
-        start_packet[3] = 0x2A;
-        start_packet[4] = 0xD8;
-        
-        */
+
         unsigned char content[1000];
         FILE *file = fopen(filename, "r");
 
@@ -116,9 +95,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
             fwrite(string,256,1,file);
         }
-        string[0] = 0x00;
 
-        fwrite(string,1,1,file);
+
 
 
         fclose(file);

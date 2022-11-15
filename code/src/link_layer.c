@@ -89,11 +89,9 @@ int llopen(LinkLayer connectionParameters) {
         wbuf[5] = '\n';
         int length = strlen(wbuf);
         (void)signal(SIGALRM, alarmHandler);
-
         int state = 0;
         unsigned char a;
         unsigned char c;
-
         while (alarmCount < connectionParameters.nRetransmissions + 1 && STOP == FALSE){
             if (alarmEnabled == FALSE){
                 alarm(connectionParameters.timeout); 
@@ -240,7 +238,6 @@ int llwrite(const unsigned char *buf, int bufSize) {
             if(write(t_id2, buffer, bufSize+6 ) != bufSize+6) {
                 printf("Missed some bytes\n");
             }
-            //else alarmEnabled = FALSE; // remove to give time
         }
         if(read(t_id2,rbuffer,1)>0) {
             unsigned char a2;
@@ -434,7 +431,8 @@ int llread(unsigned char *packet){
 
     
     if (info == TRUE) {
-        memcpy(packet, content, content_size);
+        packet[content_size] = '\0';
+        memcpy(packet, content, content_size+1);
         unsigned char receiver_ready[10];
         receiver_ready[0] = 0x7E;
         receiver_ready[1] = 0x03;
